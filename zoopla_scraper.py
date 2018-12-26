@@ -36,6 +36,8 @@ for i in range(1):
         except Exception as e:
             property_image = None
 
+            print(property_image)
+
         doc_ref = db.collection(u'properties').document()
         doc_ref.set({
             u'property_photo': property_image,
@@ -44,6 +46,6 @@ for i in range(1):
             u'post_code': postcode
         })
 
-        print('all properties successfully uploaded')
+
 
 # RIGHT MOVE
