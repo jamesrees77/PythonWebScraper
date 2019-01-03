@@ -8,8 +8,8 @@ default_app = firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 # loop through amount of pages in query
-for i in range(1):
-    source = requests.get('https://www.zoopla.co.uk/to-rent/property/bristol/?identifier=bristol&page_size=10&q=Bristol&search_source=to-rent&radius=0&price_frequency=per_month&pn=' + str(i)).text
+for i in range(17):
+    source = requests.get('https://www.zoopla.co.uk/to-rent/property/bristol/?identifier=bristol&page_size=100&q=Bristol&search_source=to-rent&radius=0&price_frequency=per_month&pn=' + str(i)).text
 
     soup = BeautifulSoup(source, 'lxml')
 
@@ -25,15 +25,17 @@ for i in range(1):
         except Exception as e:
             number_beds = None
 
-        print("number of beds: ", number_beds)
+        # print("number of beds: ", int(float(number_beds)))
 
         # get number of bathrooms
         try:
             number_baths = right_results.h3.find('span', class_='num-baths').text
+            print("number of bathrooms: ", int(float(number_baths)))
         except Exception as e:
             number_baths = None
+            print("number of bathrooms: ", number_baths)
 
-        print("number of bathrooms: ", number_baths)
+
 
         # rent price of property
         property_price = right_results.a.text
@@ -41,7 +43,7 @@ for i in range(1):
 
         # get full address
         scraped_address = right_results.find('a', class_='listing-results-address').text
-
+        print(scraped_address)
         # remove postcode from address
         address = scraped_address[:-4]
         print("address: ", address)
@@ -65,14 +67,24 @@ for i in range(1):
         # point to document called properties in firebase
         doc_ref = db.collection(u'properties').document()
         #  set object and push to firebase
-        doc_ref.set({
-            u'property_address': address,
-            u'number_of_beds': number_beds,
-            u'number_of_baths': number_baths,
-            u'property_rent': property_price,
-            u'post_code': postcode,
-            u'property_photo': property_image,
-        })
+        try:
+            doc_ref.set({
+                u'property_address': address,
+                u'number_of_beds': number_beds,
+                u'number_of_baths': int(float(number_baths)),
+                u'property_rent': property_price,
+                u'post_code': postcode,
+                u'property_photo': property_image,
+            })
+        except Exception as e:
+            doc_ref.set({
+                u'property_address': address,
+                u'number_of_beds': number_beds,
+                u'number_of_baths': number_baths,
+                u'property_rent': property_price,
+                u'post_code': postcode,
+                u'property_photo': property_image,
+            })
         print('')
         print('')
         print('')
