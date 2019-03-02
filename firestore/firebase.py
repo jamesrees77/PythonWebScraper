@@ -5,8 +5,6 @@ cred = credentials.Certificate('/Users/james/Desktop/WebScraperProject/pythonscr
 default_app = firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-quote = 'hello'
-
 doc_ref = db.collection(u'properties').document()
 doc_ref.set({
     u'quote': 'quote'
