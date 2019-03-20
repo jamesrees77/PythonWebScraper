@@ -2,22 +2,13 @@ from bs4 import BeautifulSoup
 import requests
 import firebase_admin
 from firebase_admin import credentials, firestore
-
+from algoliasearch import algoliasearch
+client = algoliasearch.Client("SXINQ9YIRL", '51a8ef4df6aee483c0b9887b43e28b88')
+index = client.init_index('properties')
 cred = credentials.Certificate('/Users/james/Desktop/WebScraperProject/firestore/pythonscraperproject-firebase-adminsdk-2ujy0-749a94c698.json')
 default_app = firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-def delete_collection(u'zoopla'):
-    docs = coll_ref.limit(all).get()
-    deleted = 0
-
-    for doc in docs:
-        print(u'Deleting doc {} => {}'.format(doc.id, doc.to_dict()))
-        doc.reference.delete()
-        deleted = deleted + 1
-
-    if deleted >= batch_size:
-        return delete_collection(coll_ref, batch_size)
 
 # loop through amount of pages in query
 print('starting')
@@ -51,7 +42,13 @@ class zooplaScraper():
 
             # rent price of property
             property_price = right_results.a.text
-            print("rent amount: ", property_price)
+            try:
+                property_rent = int(property_price[14:-17].replace(',', '')) / number_beds
+            except Exception as e:
+                property_rent = None
+
+
+            print(property_rent)
 
             # get full address
             scraped_address = right_results.find('a', class_='listing-results-address').text
@@ -70,26 +67,54 @@ class zooplaScraper():
             print("postcode: ", postcode)
             # Ensure that property image exists - if not return None
             try:
-                property_image = left_results.div.a.img['src']
+                property_image = left_results.div.a.img['data-src']
             except Exception as e:
                 property_image = None
 
-            print("Property Image: ", property_image)
+            print(property_image)
+            description = right_results.find('p', class_='').text
+            description = description.strip();
+            print(description)
+
+            term = 'student'
+
+            if term in description.lower():
+                is_student_property = True
+            else:
+                is_student_property = False
+
+            print(is_student_property)
+
+            url = 'https://www.zoopla.co.uk' + right_results.a.get('href')
+            print('URL: ', url)
 
             # point to document called properties in firebase
-            doc_ref = db.collection(u'zoopla').document()
+            doc_ref = db.collection(u'properties').document()
             #  set object and push to firebase
-            doc_ref.set({
+            item = {
+                u'property_id': doc_ref.id.decode('utf-8'),
                 u'property_address': address,
                 u'number_of_beds': number_beds,
                 u'number_of_baths': number_baths,
-                u'property_rent': property_price,
+                u'property_rent': property_rent,
                 u'post_code': postcode,
-                u'property_photo': property_image
-                })
+                u'property_photo': property_image.decode('utf-8'),
+                u'url': url.decode('utf-8'),
+                u'original_site': 'Zoopla'.decode('utf-8'),
+                u'is_student_property': is_student_property,
+                u'description': description.encode("utf-8").decode('utf-8'),
+            }
             print('')
             print('')
             print('')
+
+            db.collection(u'properties').document(doc_ref.id).set(item)
+
+            print(doc_ref.id)
+            print('')
+            print('')
+            res = index.add_object(item)
+            print "ObjectID=%s" % res["objectID"]
 
     #  run statement when all uploaded to firebase
     print('all properties successfully uploaded to firebase')
