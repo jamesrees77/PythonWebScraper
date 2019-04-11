@@ -11,39 +11,33 @@ db = firestore.client()
 # loop through amount of pages in query
 print('starting')
 class rightMoveScraper():
-    for i in range(17):
-        source = requests.get('https://www.right_move.co.uk/to-rent/property/bristol/?identifier=bristol&page_size=100&q=Bristol&search_source=to-rent&radius=0&price_frequency=per_month&pn=' + str(i)).text
+    for i in range(0, 360, 24):
+        source = requests.get('https://www.rightmove.co.uk/property-to-rent/find.html?locationIdentifier=REGION%5E219&index=' + str(i)).text
 
         soup = BeautifulSoup(source, 'lxml')
 
         # loop through all classes of listing-results-wrapper
-        for results in soup.find_all('div', class_='listing-results-wrapper'):
+        for results in soup.find_all('div', class_='propertyCard-wrapper'):
 
-            right_results = results.find('div', class_='listing-results-right')
-            left_results = results.find('div', class_='listing-results-left')
+            right_results = results.find('div', class_='propertyCard-section')
+            left_results = results.find('div', class_='propertyCard-images')
 
             # get number of beds
             try:
-                number_beds = int(float(right_results.h3.find('span', class_='num-beds').text))
+                number_beds = int(float(right_results.find('div', class_='propertyCard-details').a.h2.text[:1]))
             except Exception as e:
                 number_beds = None
 
             # print("number of beds: ", int(float(number_beds)))
 
-            # get number of bathrooms
-            try:
-                number_baths = int(float(right_results.h3.find('span', class_='num-baths').text))
-                print("number of bathrooms: ", int(float(number_baths)))
-            except Exception as e:
-                number_baths = None
-                print("number of bathrooms: ", number_baths)
 
             # rent price of property
-            property_price = right_results.a.text
+            property_price = results.find('div', class_='propertyCard-header').div.a.div.span.text
+            property_price = int(property_price[1:-4].replace(',', ''))
             print("rent amount: ", property_price)
 
             # get full address
-            scraped_address = right_results.find('a', class_='listing-results-address').text
+            scraped_address = right_results.find('div', class_='propertyCard-details').a.address.text
             print(scraped_address)
             # remove postcode from address
             address = scraped_address[:-4]
@@ -66,19 +60,30 @@ class rightMoveScraper():
             print("Property Image: ", property_image)
 
             # point to document called properties in firebase
-            doc_ref = db.collection(u'zoopla').document()
-            #  set object and push to firebase
-            doc_ref.set({
+            item = {
+                u'property_id': doc_ref.id.decode('utf-8'),
                 u'property_address': address,
                 u'number_of_beds': number_beds,
-                u'number_of_baths': number_baths,
-                u'property_rent': property_price,
+                u'property_rent': property_rent,
                 u'post_code': postcode,
-                u'property_photo': property_image
-                })
+                u'property_photo': property_image.decode('utf-8'),
+                u'url': url.decode('utf-8'),
+                u'original_site': 'Andrews Online'.decode('utf-8'),
+                u'is_student_property': is_student_property,
+                u'description': description,
+            }
+            # Add to firebase
+            db.collection(u'properties').document(doc_ref.id).set(item)
+
             print('')
             print('')
             print('')
+
+            print(doc_ref.id)
+            print('')
+            print('')
+            res = index.add_object(item)
+            print "ObjectID=%s" % res["objectID"]
 
     #  run statement when all uploaded to firebase
     print('all properties successfully uploaded to firebase')

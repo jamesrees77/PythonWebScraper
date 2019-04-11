@@ -1,3 +1,4 @@
+# All imports
 from bs4 import BeautifulSoup
 import requests
 import firebase_admin
@@ -10,8 +11,9 @@ default_app = firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 print('starting')
+# class for starting scraper
 class andrewsOnlinescraper():
-
+    #
     source = requests.get('https://www.andrewsonline.co.uk/rent/Bristol/properties/?orderBy=pricedesc&pageSize=100&letAgreed=true&letAgreed=false&distance=0&garden=False&baths=0&parking=False&character=False').text
     soup = BeautifulSoup(source, 'lxml')
 
@@ -39,7 +41,11 @@ class andrewsOnlinescraper():
         number_beds = int(float(title[0]))
         print('bedrooms: ', number_beds)
 
-        description = right_side.find('div', class_='details-column').ul.text
+        try:
+            description = right_side.find('div', class_='details-column').ul.text.decode('utf-8')
+        except Exception as e:
+            deacription = None
+
         print('description: ', description)
 
         term = 'student'
@@ -62,7 +68,8 @@ class andrewsOnlinescraper():
         print(property_rent)
 
         doc_ref = db.collection(u'andrews_online').document()
-        #  set object and push to firebase
+
+        #  set item and push to firebase && Algolia
         item = {
             u'property_id': doc_ref.id.decode('utf-8'),
             u'property_address': address,
@@ -73,14 +80,15 @@ class andrewsOnlinescraper():
             u'url': url.decode('utf-8'),
             u'original_site': 'Andrews Online'.decode('utf-8'),
             u'is_student_property': is_student_property,
-            u'description': description.decode('utf-8'),
+            u'description': description,
         }
-
+        # Add to firebase
         db.collection(u'properties').document(doc_ref.id).set(item)
 
         print('')
         print('')
         print('')
+        ## Adding the same object that's being added to firebase for SEARCH
         res = index.add_object(item)
         print "ObjectID=%s" % res["objectID"]
 
